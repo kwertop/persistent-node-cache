@@ -8,4 +8,4 @@
 // let val = LocalCache.get("foo")
 // console.log(val);
 
-export { default as PersistentNodeCache } from './persistentNodeCache';
+export * from "../src/persistentNodeCache";

@@ -13,7 +13,7 @@ type CmdItem<T = any> = {
     keyValue?: ValueSetItem<T>[];
 }
 
-export default class PersistentNodeCache extends NodeCache {
+export class PersistentNodeCache extends NodeCache {
     private readonly interval: NodeJS.Timeout;
     private readonly cacheName: string;
     private readonly emitter: EventEmitter;
