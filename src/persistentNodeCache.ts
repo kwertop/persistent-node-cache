@@ -13,7 +13,7 @@ type CmdItem<T = any> = {
     keyValue?: ValueSetItem<T>[];
 }
 
-export class PersistentNodeCache extends NodeCache {
+export default class PersistentNodeCache extends NodeCache {
     private readonly interval: NodeJS.Timeout;
     private readonly cacheName: string;
     private readonly emitter: EventEmitter;
@@ -33,8 +33,7 @@ export class PersistentNodeCache extends NodeCache {
         }
         this.backupFilePath = (dir || os.homedir()) + `/${cacheName}.backup`;
         this.appendFilePath = (dir || os.homedir()) + `/${cacheName}.append`;
-        const file = fs.createWriteStream(this.appendFilePath);
-        file.end();
+        fs.writeFileSync(this.appendFilePath, '');
         super.on("expired", (key, _) => { this.appendExpiredEvent(key) });
     }
 
@@ -169,12 +168,7 @@ export class PersistentNodeCache extends NodeCache {
             let bf = Buffer.from(JSON.stringify(data));
             fs.writeFileSync(this.backupFilePath, bf);
             fs.writeFileSync(this.appendFilePath, '');
-
-            fs.close(this.appendFileDescriptor, (closeErr) => {
-                if(closeErr) {
-                    console.error('Error closing file:', closeErr);
-                }
-            });
+            this.appendFileDescriptor.close();
         }
         catch(err: any) {
             //
@@ -186,7 +180,7 @@ export class PersistentNodeCache extends NodeCache {
     }
 
     private appendToFile(fileName: string, data: Buffer): void {
-        const flags = fs.constants.O_WRONLY | fs.constants.O_DIRECT;
+        const flags = fs.constants.O_WRONLY | fs.constants.O_DIRECT | fs.constants.O_APPEND;
         const mode = 0o666;
 
         if(this.appendFileDescriptor) {
@@ -207,7 +201,7 @@ export class PersistentNodeCache extends NodeCache {
                 if (writeErr) {
                     console.error('Error writing to file:', writeErr);
                 }
-            });
+            });            
         });
     }
 }
