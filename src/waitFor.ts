@@ -1,3 +1,8 @@
+/*
+This wait for event logic is borrowed from wait-for-event package by @jameslnewell
+https://github.com/jameslnewell/wait-for-event
+*/
+
 export const waitFor = <Event extends string>(
     event: Event,
     emitter: EventEmitter<Event>,
