@@ -1,4 +1,8 @@
 "use strict";
+/*
+This wait for event logic is borrowed from wait-for-event package by @jameslnewell
+https://github.com/jameslnewell/wait-for-event
+*/
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.removeListener = exports.waitFor = void 0;
 const waitFor = (event, emitter, callback) => {

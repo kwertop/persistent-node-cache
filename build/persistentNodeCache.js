@@ -19,24 +19,31 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PersistentNodeCache = void 0;
 const node_cache_1 = __importDefault(require("node-cache"));
 const events_1 = require("events");
 const waitFor_1 = require("./waitFor");
 const fs_1 = __importDefault(require("fs"));
 const readline_1 = __importDefault(require("readline"));
+const os_1 = __importDefault(require("os"));
 class PersistentNodeCache extends node_cache_1.default {
-    constructor(cacheName, period, opts) {
+    constructor(cacheName, period, dir, opts) {
         super(opts);
         this.cacheName = cacheName;
         this.interval = setInterval(() => { this.saveToDisk(); }, period);
         this.emitter = new events_1.EventEmitter();
         this.flushingToDisk = false;
+        if (dir === null || dir === void 0 ? void 0 : dir.endsWith('/')) {
+            dir = dir.slice(0, -1);
+        }
+        this.backupFilePath = (dir || os_1.default.homedir()) + `/${cacheName}.backup`;
+        this.appendFilePath = (dir || os_1.default.homedir()) + `/${cacheName}.append`;
+        fs_1.default.writeFileSync(this.appendFilePath, '');
         super.on("expired", (key, _) => { this.appendExpiredEvent(key); });
     }
     set(key, value, ttl) {
         if (this.flushingToDisk) {
             (0, waitFor_1.waitFor)('done', this.emitter, () => { this.set(key, value, ttl); });
+            return false;
         }
         let retVal;
         if (ttl) {
@@ -47,39 +54,44 @@ class PersistentNodeCache extends node_cache_1.default {
         }
         let item = { cmd: 'set', key: key, val: value, ttl: ttl };
         let bf = Buffer.from(JSON.stringify(item) + '\n');
-        fs_1.default.appendFileSync(`/Users/rahulsharma/${this.cacheName}.append`, bf);
+        // fs.appendFileSync(this.appendFilePath, bf);
+        this.appendToFile(this.appendFilePath, bf);
         return retVal;
     }
     mset(keyValueSet) {
         if (this.flushingToDisk) {
             (0, waitFor_1.waitFor)('done', this.emitter, () => { this.mset(keyValueSet); });
+            return false;
         }
         let item = { cmd: 'mset', keyValue: keyValueSet };
         let bf = Buffer.from(JSON.stringify(item) + '\n');
-        fs_1.default.appendFileSync(`/Users/rahulsharma/${this.cacheName}.append`, bf);
+        this.appendToFile(this.appendFilePath, bf);
         return super.mset(keyValueSet);
     }
     del(keys) {
         if (this.flushingToDisk) {
             (0, waitFor_1.waitFor)('done', this.emitter, () => { this.del(keys); });
+            return 0;
         }
         let item = { cmd: 'del', key: keys };
         let bf = Buffer.from(JSON.stringify(item) + '\n');
-        fs_1.default.appendFileSync(`/Users/rahulsharma/${this.cacheName}.append`, bf);
+        this.appendToFile(this.appendFilePath, bf);
         return super.del(keys);
     }
     take(key) {
         if (this.flushingToDisk) {
             (0, waitFor_1.waitFor)('done', this.emitter, () => { this.take(key); });
+            return;
         }
         let item = { cmd: 'del', key: key };
         let bf = Buffer.from(JSON.stringify(item) + '\n');
-        fs_1.default.appendFileSync(`/Users/rahulsharma/${this.cacheName}.append`, bf);
+        this.appendToFile(this.appendFilePath, bf);
         return super.take(key);
     }
     ttl(key, ttl) {
         if (this.flushingToDisk) {
             (0, waitFor_1.waitFor)('done', this.emitter, () => { this.ttl(key, ttl); });
+            return false;
         }
         let retVal;
         if (ttl) {
@@ -90,25 +102,30 @@ class PersistentNodeCache extends node_cache_1.default {
         }
         let item = { cmd: 'ttl', key: key, ttl: ttl };
         let bf = Buffer.from(JSON.stringify(item) + '\n');
-        fs_1.default.appendFileSync(`/Users/rahulsharma/${this.cacheName}.append`, bf);
+        this.appendToFile(this.appendFilePath, bf);
         return retVal;
     }
     flushAll() {
         return super.flushAll();
     }
+    close() {
+        super.close();
+        clearInterval(this.interval);
+    }
     recover() {
         const _super = Object.create(null, {
             mset: { get: () => super.mset },
+            keys: { get: () => super.keys },
             set: { get: () => super.set },
             del: { get: () => super.del },
             ttl: { get: () => super.ttl }
         });
         var _a, e_1, _b, _c;
         return __awaiter(this, void 0, void 0, function* () {
-            const backup = fs_1.default.readFileSync(`/Users/rahulsharma/${this.cacheName}.backup`);
+            const backup = fs_1.default.readFileSync(this.backupFilePath);
             const data = JSON.parse(backup.toString());
             _super.mset.call(this, data);
-            const fileStream = fs_1.default.createReadStream(`/Users/rahulsharma/${this.cacheName}.append`);
+            const fileStream = fs_1.default.createReadStream(this.appendFilePath);
             const rl = readline_1.default.createInterface({
                 input: fileStream,
                 crlfDelay: Infinity
@@ -118,6 +135,7 @@ class PersistentNodeCache extends node_cache_1.default {
                     _c = rl_1_1.value;
                     _d = false;
                     const line = _c;
+                    let m = _super.keys.call(this);
                     let data = JSON.parse(line.toString());
                     switch (data['cmd']) {
                         case 'set':
@@ -149,26 +167,68 @@ class PersistentNodeCache extends node_cache_1.default {
     appendExpiredEvent(key) {
         let item = { cmd: 'del', key: key };
         let bf = Buffer.from(JSON.stringify(item) + '\n');
-        fs_1.default.appendFileSync(`/Users/rahulsharma/${this.cacheName}.append`, bf);
+        this.appendToFile(this.appendFilePath, bf);
     }
     saveToDisk() {
         this.flushingToDisk = true;
-        let data = new Array();
-        let keys = super.keys();
-        for (let i = 0; i < keys.length; i++) {
-            let key = keys[i];
-            let item = {
-                key: key,
-                val: super.get(key),
-                ttl: super.getTtl(key)
-            };
-            data.push(item);
+        try {
+            let data = new Array();
+            let keys = super.keys();
+            for (let i = 0; i < keys.length; i++) {
+                let key = keys[i];
+                let item = {
+                    key: key,
+                    val: super.get(key),
+                    ttl: super.getTtl(key)
+                };
+                data.push(item);
+            }
+            let bf = Buffer.from(JSON.stringify(data));
+            fs_1.default.writeFileSync(this.backupFilePath, bf);
+            fs_1.default.writeFileSync(this.appendFilePath, '');
+            // fs.write(this.appendFileDescriptor, '', (writeErr, written, buffer) => {
+            //     if (writeErr) {
+            //         console.error('Error writing to file:', writeErr);
+            //     }
+            // });
+            this.appendFileDescriptor.close();
         }
-        let bf = Buffer.from(JSON.stringify(data));
-        fs_1.default.writeFileSync(`/Users/rahulsharma/${this.cacheName}.backup`, bf);
-        fs_1.default.writeFileSync(`/Users/rahulsharma/${this.cacheName}.append`, '');
-        this.flushingToDisk = false;
-        this.emitter.emit('done');
+        catch (err) {
+            //
+        }
+        finally {
+            this.flushingToDisk = false;
+            this.emitter.emit('done');
+        }
+    }
+    appendToFile(fileName, data) {
+        const flags = fs_1.default.constants.O_WRONLY | fs_1.default.constants.O_DIRECT | fs_1.default.constants.O_APPEND;
+        const mode = 0o666;
+        if (this.appendFileDescriptor) {
+            fs_1.default.write(this.appendFileDescriptor, data, 0, data.length, null, (writeErr, written, buffer) => {
+                if (writeErr) {
+                    console.error('Error writing to file:', writeErr);
+                }
+            });
+            return;
+        }
+        fs_1.default.open(fileName, flags, mode, (err, fd) => {
+            if (err) {
+                console.error('Error opening file:', err);
+                return;
+            }
+            this.appendFileDescriptor = fd;
+            fs_1.default.write(fd, data, 0, data.length, null, (writeErr, written, buffer) => {
+                if (writeErr) {
+                    console.error('Error witing to file:', writeErr);
+                }
+                // fs.close(fd, (closeErr) => {
+                //     if(closeErr) {
+                //         console.error('Error closing file:', closeErr);
+                //     }
+                // });
+            });
+        });
     }
 }
-exports.PersistentNodeCache = PersistentNodeCache;
+exports.default = PersistentNodeCache;

@@ -8,9 +8,12 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LocalCache = void 0;
-const persistentNodeCache_1 = require("./persistentNodeCache");
+const persistentNodeCache_1 = __importDefault(require("../persistentNodeCache"));
 const cacheExpirySeconds = { "HALF_HOUR": 1800, "FIFTEEN_MINUTES": 900 };
 class LocalCache {
     constructor() {
@@ -43,7 +46,7 @@ class LocalCache {
     static createNodeCacheInstance() {
         const expirySeconds = cacheExpirySeconds.HALF_HOUR;
         const checkExpiredKeysSeconds = cacheExpirySeconds.FIFTEEN_MINUTES;
-        LocalCache.cache = new persistentNodeCache_1.PersistentNodeCache("mycache", 10000, { stdTTL: expirySeconds, checkperiod: checkExpiredKeysSeconds });
+        LocalCache.cache = new persistentNodeCache_1.default("mycache", 10000, "", { stdTTL: expirySeconds, checkperiod: checkExpiredKeysSeconds });
     }
     /*
     **  InMemory cache expiry with random jitter in seconds
