@@ -1,5 +1,5 @@
 const Benchmarkify = require("benchmarkify");
-import { PersistentNodeCache } from "./persistentNodeCache";
+import PersistentNodeCache from "./persistentNodeCache";
 import NodeCache from "node-cache";
 
 const nodeCache = new NodeCache();

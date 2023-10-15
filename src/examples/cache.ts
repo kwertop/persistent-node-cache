@@ -1,4 +1,4 @@
-import { PersistentNodeCache } from "./persistentNodeCache";
+import PersistentNodeCache from "../persistentNodeCache";
 
 const cacheExpirySeconds = {"HALF_HOUR": 1800, "FIFTEEN_MINUTES": 900};
 
