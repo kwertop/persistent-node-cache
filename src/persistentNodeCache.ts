@@ -20,6 +20,7 @@ export class PersistentNodeCache extends NodeCache {
     private readonly backupFilePath: string;
     private readonly appendFilePath: string;
     private flushingToDisk: boolean;
+    private appendFileDescriptor: any;
 
     constructor(cacheName: string, period: number, dir?: string, opts?: any) {
         super(opts);
@@ -28,10 +29,12 @@ export class PersistentNodeCache extends NodeCache {
         this.emitter = new EventEmitter();
         this.flushingToDisk = false;
         if(dir?.endsWith('/')) {
-            dir = dir.slice(0,-1)
+            dir = dir.slice(0,-1);
         }
         this.backupFilePath = (dir || os.homedir()) + `/${cacheName}.backup`;
         this.appendFilePath = (dir || os.homedir()) + `/${cacheName}.append`;
+        const file = fs.createWriteStream(this.appendFilePath);
+        file.end();
         super.on("expired", (key, _) => { this.appendExpiredEvent(key) });
     }
 
@@ -48,7 +51,8 @@ export class PersistentNodeCache extends NodeCache {
         }
         let item: CmdItem = { cmd: 'set', key: key, val: value, ttl: ttl};
         let bf = Buffer.from(JSON.stringify(item) + '\n');
-        fs.appendFileSync(this.appendFilePath, bf);
+        // fs.appendFileSync(this.appendFilePath, bf);
+        this.appendToFile(this.appendFilePath, bf);
         return retVal;
     }
 
@@ -59,7 +63,7 @@ export class PersistentNodeCache extends NodeCache {
         }
         let item: CmdItem = { cmd: 'mset', keyValue: keyValueSet};
         let bf = Buffer.from(JSON.stringify(item) + '\n');
-        fs.appendFileSync(this.appendFilePath, bf);
+        this.appendToFile(this.appendFilePath, bf);
         return super.mset(keyValueSet)
     }
 
@@ -70,7 +74,7 @@ export class PersistentNodeCache extends NodeCache {
         }
         let item: CmdItem = { cmd: 'del', key: keys};
         let bf = Buffer.from(JSON.stringify(item) + '\n');
-        fs.appendFileSync(this.appendFilePath, bf);
+        this.appendToFile(this.appendFilePath, bf);
         return super.del(keys)
     }
 
@@ -81,7 +85,7 @@ export class PersistentNodeCache extends NodeCache {
         }
         let item: CmdItem = { cmd: 'del', key: key};
         let bf = Buffer.from(JSON.stringify(item) + '\n');
-        fs.appendFileSync(this.appendFilePath, bf);
+        this.appendToFile(this.appendFilePath, bf);
         return super.take(key);
     }
 
@@ -98,7 +102,7 @@ export class PersistentNodeCache extends NodeCache {
         }
         let item: CmdItem = { cmd: 'ttl', key: key, ttl: ttl};
         let bf = Buffer.from(JSON.stringify(item) + '\n');
-        fs.appendFileSync(this.appendFilePath, bf);
+        this.appendToFile(this.appendFilePath, bf);
         return retVal;
     }
 
@@ -145,7 +149,7 @@ export class PersistentNodeCache extends NodeCache {
     private appendExpiredEvent(key: Key) {
         let item: CmdItem = { cmd: 'del', key: key};
         let bf = Buffer.from(JSON.stringify(item) + '\n');
-        fs.appendFileSync(`/Users/rahulsharma/${this.cacheName}.append`, bf);
+        this.appendToFile(this.appendFilePath, bf);
     }
 
     private saveToDisk(): void {
@@ -165,6 +169,12 @@ export class PersistentNodeCache extends NodeCache {
             let bf = Buffer.from(JSON.stringify(data));
             fs.writeFileSync(this.backupFilePath, bf);
             fs.writeFileSync(this.appendFilePath, '');
+
+            fs.close(this.appendFileDescriptor, (closeErr) => {
+                if(closeErr) {
+                    console.error('Error closing file:', closeErr);
+                }
+            });
         }
         catch(err: any) {
             //
@@ -173,5 +183,31 @@ export class PersistentNodeCache extends NodeCache {
             this.flushingToDisk = false;
             this.emitter.emit('done');
         }
+    }
+
+    private appendToFile(fileName: string, data: Buffer): void {
+        const flags = fs.constants.O_WRONLY | fs.constants.O_DIRECT;
+        const mode = 0o666;
+
+        if(this.appendFileDescriptor) {
+            fs.write(this.appendFileDescriptor, data, 0, data.length, null, (writeErr, written, buffer) => {
+                if (writeErr) {
+                    console.error('Error writing to file:', writeErr);
+                }
+            });
+            return;
+        }
+        fs.open(fileName, flags, mode, (err, fd) => {
+            if (err) {
+                console.error('Error opening file:', err);
+                return;
+            }
+            this.appendFileDescriptor = fd;
+            fs.write(fd, data, 0, data.length, null, (writeErr, written, buffer) => {
+                if (writeErr) {
+                    console.error('Error writing to file:', writeErr);
+                }
+            });
+        });
     }
 }
