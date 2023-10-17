@@ -13,30 +13,30 @@ export const waitFor = <Event extends string>(
             addListener(emitter, event, handleEvent);
             addListener(emitter, 'error', handleError);
         };
-  
+
         const stopListening = (): void => {
             removeListener(emitter, event, handleEvent);
             removeListener(emitter, 'error', handleError);
         };
-  
+
         const handleEvent = (): void => {
             stopListening();
             resolve();
         };
-  
+
         const handleError = (error: any): void => {
             stopListening();
             reject(error);
         };
-  
+
         startListening();
     });
-  
+
     if (callback) {
-      promise.then(
-        () => callback(undefined),
-        (error) => callback(error),
-      );
+        promise.then(
+            () => callback(undefined),
+            (error) => callback(error),
+        );
     }
 
     return promise;
@@ -56,7 +56,7 @@ const addListener = <Event extends string>(
         (emitter as EventEmitterAddListener<Event>).addListener(event, listener);
     }
 };
-  
+
 export const removeListener = <Event extends string>(
     emitter: EventEmitterOff<Event> | EventEmitterRemoveListener<Event>,
     event: Event | 'error',
@@ -67,10 +67,10 @@ export const removeListener = <Event extends string>(
     } else if (
         typeof (emitter as EventEmitterRemoveListener<Event>).removeListener === 'function'
     ) {
-      (emitter as EventEmitterRemoveListener<Event>).removeListener(
-        event,
-        listener,
-      );
+        (emitter as EventEmitterRemoveListener<Event>).removeListener(
+            event,
+            listener,
+        );
     }
 };
 
@@ -81,11 +81,11 @@ interface Callback {
 interface EventListener {
     (...args: any[]): void;
 }
-  
+
 interface EventEmitterOn<Event extends string> {
     on(event: Event | 'error', listener: EventListener): void;
 }
-  
+
 interface EventEmitterOff<Event extends string> {
     off(event: Event | 'error', listener: EventListener): void;
 }
@@ -97,7 +97,7 @@ interface EventEmitterAddListener<Event extends string> {
 interface EventEmitterRemoveListener<Event extends string> {
     removeListener(event: Event | 'error', listener: EventListener): void;
 }
-  
+
 type EventEmitter<Event extends string> = (
     | EventEmitterOn<Event>
     | EventEmitterAddListener<Event>
