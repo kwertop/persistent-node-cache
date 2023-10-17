@@ -1,7 +1,6 @@
 # persistent-node-cache
-===============
 
-Light weight persistent cache backed by node-cache(https://github.com/node-cache/node-cache).
+Light weight persistent cache backed by [node-cache](https://github.com/node-cache/node-cache).
 It persists in-memory cache periodically on disk while also saving every write command in an append-only manner
 to guarantee minimal data loss during application restarts.
 
