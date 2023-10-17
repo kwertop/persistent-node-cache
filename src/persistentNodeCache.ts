@@ -22,17 +22,17 @@ export default class PersistentNodeCache extends NodeCache {
     private flushingToDisk: boolean;
     private appendFileDescriptor: any;
 
-    constructor(cacheName: string, period: number, dir?: string, opts?: any) {
+    constructor(cacheName: string, period?: number, dir?: string, opts?: any) {
         super(opts);
         this.cacheName = cacheName;
-        this.interval = setInterval(() => { this.saveToDisk() }, period);
+        this.interval = setInterval(() => { this.saveToDisk() }, period || 1000);
         this.emitter = new EventEmitter();
         this.flushingToDisk = false;
         if(dir?.endsWith('/')) {
             dir = dir.slice(0,-1);
         }
-        this.backupFilePath = (dir || os.homedir()) + `/${cacheName}.backup`;
-        this.appendFilePath = (dir || os.homedir()) + `/${cacheName}.append`;
+        this.backupFilePath = (dir || os.homedir()) + `/${this.cacheName}.backup`;
+        this.appendFilePath = (dir || os.homedir()) + `/${this.cacheName}.append`;
         fs.writeFileSync(this.appendFilePath, '');
         super.on("expired", (key, _) => { this.appendExpiredEvent(key) });
     }
