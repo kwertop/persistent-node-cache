@@ -8,6 +8,10 @@ to guarantee minimal data loss during application restarts.
 
 ## Install
 
+```shell
+npm i persistent-node-cache
+```
+
 ## Usage
 
 ### Initialize Cache
