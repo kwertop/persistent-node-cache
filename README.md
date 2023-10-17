@@ -13,7 +13,7 @@ to guarantee minimal data loss during application restarts.
 ### Initialize Cache
 
 ```typescript
-import PersistentNodeCache from "./persistentNodeCache";
+import PersistentNodeCache from "persistent-node-cache";
 
 const persistentCache = new PersistentNodeCache("mycache", 1000);
 ```
