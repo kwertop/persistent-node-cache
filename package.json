@@ -2,13 +2,14 @@
   "name": "persistent-node-cache",
   "version": "1.0.0",
   "description": "persistent wrapper over node-cache for recovery",
-  "main": "index.js",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
   "scripts": {
     "test": "jest --coverage",
     "tsc": "tsc",
-    "build": "rm -rf ./build && tsc -p .",
-    "start": "tsc -p . && node ./build/index.js",
-    "benchmark": "tsc -p . && node ./build/benchmarkCache.js"
+    "build": "rm -rf ./lib && tsc -p .",
+    "start": "tsc -p . && node ./lib/index.js",
+    "benchmark": "tsc -p . && node ./lib/benchmarkCache.js"
   },
   "devDependencies": {
     "@jest/globals": "^29.6.4",
@@ -21,7 +22,34 @@
     "ts-node": "^10.9.1",
     "typescript": "^5.2.2"
   },
-  "dependencies": {    
+  "dependencies": {
     "node-cache": "^5.1.2"
-  }
+  },
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kwertop/persistent-node-cache.git"
+  },
+  "keywords": [
+    "fast",
+    "persistent",
+    "cache",
+    "caching",
+    "node",
+    "nodejs",
+    "recovery",
+    "restore",
+    "directio",
+    "in-memory",
+    "disk-storage"
+  ],
+  "author": "Rahul Sharma",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/kwertop/persistent-node-cache/issues"
+  },
+  "homepage": "https://github.com/kwertop/persistent-node-cache#readme"
 }
