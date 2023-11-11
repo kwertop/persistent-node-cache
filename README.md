@@ -1,4 +1,4 @@
-# persistent-node-cache
+# persistent-node-cache ![Tests](https://github.com/kwertop/persistent-node-cache/actions/workflows/run_tests.yml/badge.svg)
 
 Light weight persistent cache backed by [node-cache](https://github.com/node-cache/node-cache).
 It persists in-memory cache periodically on disk while also saving every write command in an append-only manner
