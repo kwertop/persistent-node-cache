@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { PersistentNodeCache } from "../src/persistentNodeCache";
+import PersistentNodeCache from "../src/persistentNodeCache";
 const fs = require('fs');
 const { Readable } = require('stream');
 import {EventEmitter} from 'events';
+import os from "os";
+import exp from "constants";
 
 describe("persistentNodeCache", () => {
     beforeEach(() => {
@@ -10,83 +12,91 @@ describe("persistentNodeCache", () => {
     });
 
     it('should set the key-value', () => {
-        fs.appendFileSync = jest.fn();
+        fs.write = jest.fn();
         let cache = new PersistentNodeCache("mycache", 2000);
+        const appendToFileMock = jest.spyOn(PersistentNodeCache.prototype as any, 'appendToFile');
         cache.set("foo", "bar");
-        let val = cache.get("foo")
-        expect(val).toBe("bar");
-        expect(fs.appendFileSync).toHaveBeenCalledTimes(1);
+        expect(appendToFileMock).toHaveBeenCalled();
         let item = { cmd: 'set', key: 'foo', val: 'bar'};
-        expect(fs.appendFileSync).toBeCalledWith('/Users/rahulsharma/mycache.append', Buffer.from(JSON.stringify(item) + '\n'))
+        expect(appendToFileMock).toBeCalledWith(`${os.homedir()}/mycache.append`, Buffer.from(JSON.stringify(item) + '\n'))
+        let val = cache.get("foo");
+        expect(val).toBe("bar");
         cache.close();
     });
 
     it('should multi set the key-value pairs', () => {
         fs.appendFileSync = jest.fn();
         let cache = new PersistentNodeCache("mycache", 1000);
+        const appendToFileMock = jest.spyOn(PersistentNodeCache.prototype as any, 'appendToFile');
         cache.mset([{key: 'foo', val: 'bar'}, {key: 'alice', val: 'bob'}]);
+        expect(appendToFileMock).toHaveBeenCalled();
+        let item = { cmd: 'mset', keyValue: [{key: 'foo', val: 'bar'}, {key: 'alice', val: 'bob'}]};
+        expect(appendToFileMock).toBeCalledWith(`${os.homedir()}/mycache.append`, Buffer.from(JSON.stringify(item) + '\n'))
         let val = cache.get("foo");
         expect(val).toBe('bar');
         val = cache.get('alice');
         expect(val).toBe('bob');
-        let item = { cmd: 'mset', keyValue: [{key: 'foo', val: 'bar'}, {key: 'alice', val: 'bob'}]};
-        expect(fs.appendFileSync).toBeCalledWith('/Users/rahulsharma/mycache.append', Buffer.from(JSON.stringify(item) + '\n'))
         cache.close();
     });
 
     it('should take a key-value pair', () => {
         fs.appendFileSync = jest.fn();
         let cache = new PersistentNodeCache("mycache", 1000);
+        const appendToFileMock = jest.spyOn(PersistentNodeCache.prototype as any, 'appendToFile');
         cache.mset([{key: 'foo', val: 'bar'}, {key: 'alice', val: 'bob'}]);
         let val = cache.take('foo');
+        expect(appendToFileMock).toHaveBeenCalled();
+        let item = { cmd: 'del', key: 'foo'};
+        expect(appendToFileMock).toBeCalledWith(`${os.homedir()}/mycache.append`, Buffer.from(JSON.stringify(item) + '\n'));
         expect(val).toBe('bar');
         val = cache.get('foo');
         expect(val).toBe(undefined);
-        let item = { cmd: 'del', key: 'foo'};
-        expect(fs.appendFileSync).toBeCalledWith('/Users/rahulsharma/mycache.append', Buffer.from(JSON.stringify(item) + '\n'))
         cache.close();
     });
 
     it('should delete a key-value pair', () => {
         fs.appendFileSync = jest.fn();
         let cache = new PersistentNodeCache("mycache", 1000);
+        const appendToFileMock = jest.spyOn(PersistentNodeCache.prototype as any, 'appendToFile');
         cache.mset([{key: 'foo', val: 'bar'}, {key: 'alice', val: 'bob'}]);
         let val = cache.get("foo");
         expect(val).toBe('bar');
         cache.del('foo');
+        let item = { cmd: 'del', key: 'foo'};
+        expect(appendToFileMock).toBeCalledWith(`${os.homedir()}/mycache.append`, Buffer.from(JSON.stringify(item) + '\n'))
         val = cache.get("foo");
         expect(val).toBe(undefined);
-        let item = { cmd: 'del', key: 'foo'};
-        expect(fs.appendFileSync).toBeCalledWith('/Users/rahulsharma/mycache.append', Buffer.from(JSON.stringify(item) + '\n'))
         cache.close();
     });
 
     it('should expire key-value pair', async () => {
         fs.appendFileSync = jest.fn();
         let cache = new PersistentNodeCache("mycache", 1000);
+        const appendToFileMock = jest.spyOn(PersistentNodeCache.prototype as any, 'appendToFile');
         cache.set("foo", "bar", 1);
+        let item = { cmd: 'set', key: 'foo', val: 'bar', ttl: 1};
+        expect(appendToFileMock).toBeCalledWith(`${os.homedir()}/mycache.append`, Buffer.from(JSON.stringify(item) + '\n'))
         let val = cache.get("foo");
         expect(val).toBe('bar');
         await new Promise(f => setTimeout(f, 1100));
         val = cache.get("foo");
         expect(val).toBe(undefined);
-        let item = { cmd: 'set', key: 'foo', val: 'bar', ttl: 1};
-        expect(fs.appendFileSync).toBeCalledWith('/Users/rahulsharma/mycache.append', Buffer.from(JSON.stringify(item) + '\n'))
         cache.close();
     });
 
     it('should expire key-value pair with ttl command', async () => {
         fs.appendFileSync = jest.fn();
         let cache = new PersistentNodeCache("mycache", 1000);
+        const appendToFileMock = jest.spyOn(PersistentNodeCache.prototype as any, 'appendToFile');
         cache.set("foo", "bar");
         let val = cache.get("foo");
         expect(val).toBe('bar');
         cache.ttl('foo', 1);
+        let item = { cmd: 'ttl', key: 'foo', ttl: 1};
+        expect(appendToFileMock).toBeCalledWith(`${os.homedir()}/mycache.append`, Buffer.from(JSON.stringify(item) + '\n'))
         await new Promise(f => setTimeout(f, 1100));
         val = cache.get("foo");
         expect(val).toBe(undefined);
-        let item = { cmd: 'ttl', key: 'foo', ttl: 1};
-        expect(fs.appendFileSync).toBeCalledWith('/Users/rahulsharma/mycache.append', Buffer.from(JSON.stringify(item) + '\n'))
         cache.close();
     });
 });
