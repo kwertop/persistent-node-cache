@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import PersistentNodeCache, { Serializer } from "../src/persistentNodeCache";
+import PersistentNodeCache, { CacheSerializer } from "../src/persistentNodeCache";
 const fs = require('fs');
 const { Readable } = require('stream');
 import {EventEmitter} from 'events';
@@ -210,7 +210,7 @@ describe('persistentNodeCacheTestWait', () => {
 
 describe('persistentNodeCacheSerialize', () => {
     it('should set the key-value with custom serialization', () => {
-        const customSerializer: Serializer = {
+        const customSerializer: CacheSerializer = {
             serialize: (item: any) => {
                 return Buffer.from(Buffer.from(JSON.stringify(item)).toString('base64') + '\n');
             },
@@ -230,7 +230,7 @@ describe('persistentNodeCacheSerialize', () => {
     });
 
     it("should save backup periodically", () => {
-        const customSerializer: Serializer = {
+        const customSerializer: CacheSerializer = {
             serialize: (item: any) => {
                 return Buffer.from(Buffer.from(JSON.stringify(item)).toString('base64') + '\n');
             },
@@ -253,7 +253,7 @@ describe('persistentNodeCacheSerialize', () => {
         jest.spyOn(fs, 'readFileSync').mockImplementation(function () {
             return Buffer.from(Buffer.from(JSON.stringify(data)).toString('base64') + '\n');
         });
-        const customSerializer: Serializer = {
+        const customSerializer: CacheSerializer = {
             serialize: (item: any) => {
                 return Buffer.from(Buffer.from(JSON.stringify(item)).toString('base64') + '\n');
             },

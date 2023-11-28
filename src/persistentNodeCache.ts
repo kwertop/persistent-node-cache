@@ -13,7 +13,7 @@ type CmdItem<T = any> = {
     keyValue?: ValueSetItem<T>[];
 }
 
-export type Serializer = {
+export type CacheSerializer = {
     serialize: Function;
     deserialize: Function;
 }
@@ -26,9 +26,9 @@ export default class PersistentNodeCache extends NodeCache {
     private readonly appendFilePath: string;
     private flushingToDisk: boolean;
     private appendFileDescriptor: any;
-    private serializer: Serializer;
+    private serializer: CacheSerializer;
 
-    constructor(cacheName: string, period?: number, dir?: string, opts?: any, serializer?: Serializer) {
+    constructor(cacheName: string, period?: number, dir?: string, opts?: any, serializer?: CacheSerializer) {
         super(opts);
         this.cacheName = cacheName;
         this.interval = setInterval(() => { this.saveToDisk() }, period || 1000);
@@ -44,7 +44,7 @@ export default class PersistentNodeCache extends NodeCache {
             this.serializer = serializer;
         }
         else {
-            const customSerializer: Serializer = {
+            const customSerializer: CacheSerializer = {
                 serialize: (item: any) => {
                     return Buffer.from(JSON.stringify(item) + '\n'); 
                 },
