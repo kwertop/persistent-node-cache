@@ -25,11 +25,20 @@ const persistentCache = new PersistentNodeCache("mycache", 1000);
 
 #### Options
 
- - `cacheName`: *(required)* the name of the cache. Used for recovering/restoring cache from disk.
- - `period`: *(default: `1 second`)* interval at which cache backup is saved
- - `dir`: *(default: `home dir of user`)* directory where backup files will be created
- - `opts`: standard options of `node-cache` package
+ - `cacheName`: `string` *(required)* the name of the cache. Used for recovering/restoring cache from disk.
+ - `period`: `number` *(default: `1 second`)* interval at which cache backup is saved
+ - `dir`: `string` *(default: `home dir of user`)* directory where backup files will be created
+ - `opts`: `object` standard options of `node-cache` package
+ - `serializer`: `[CacheSerializer](#cacheserializer-type)` *(default: `JSON serializer`)* custom serializer for persisting data on disk
 
+#### CacheSerializer Type
+
+```typescript
+type CacheSerializer = {
+    serialize: Function;
+    deserialize: Function;
+}
+```
 
 ### Cache Operations
 
@@ -73,3 +82,30 @@ persistentCache.recover();
 
 persistentCache.get("mykey");    //myval
 ```
+
+### Use Custom Serializer
+
+```typescript
+import { PersistentNodeCache, CacheSerializer } from "persistent-node-cache";
+
+const customSerializer: CacheSerializer = {
+    serialize: (item: any) => {
+        return Buffer.from(Buffer.from(JSON.stringify(item)).toString('base64') + '\n');
+    },
+    deserialize: (bf: Buffer) => {
+        return JSON.parse(Buffer.from(bf.toString().trim(), 'base64').toString());
+    }
+};
+
+const cache = new PersistentNodeCache("mycache", 0, '', {}, customSerializer);
+```
+
+### Benchmarks
+
+Benchmark figures for get/set operations (on an Apple M2, 8 GB RAM system)
+
+|                          | get                 | set                  |
+|--------------------------|---------------------|----------------------|
+| `persistent-node-cache`  | 21,074,363 ops/sec  | 623,668 ops/sec      |
+| `node-cache`             | 15,939,686 ops/sec  | 8,862,257 ops/sec    |
+| `persistent-cache`       | 8,670,967 ops/sec   | 550 ops/sec          |
