@@ -7,7 +7,9 @@ export default class PersistentNodeCache extends NodeCache {
     private readonly appendFilePath;
     private flushingToDisk;
     private appendFileDescriptor;
-    constructor(cacheName: string, period?: number, dir?: string, opts?: any);
+    private encoder;
+    private decoder;
+    constructor(cacheName: string, period?: number, dir?: string, opts?: any, encoder?: Function, decoder?: Function);
     set<T>(key: Key, value: T, ttl?: number | string): boolean;
     mset<T>(keyValueSet: ValueSetItem<T>[]): boolean;
     del(keys: Key | Key[]): number;
@@ -16,6 +18,8 @@ export default class PersistentNodeCache extends NodeCache {
     flushAll(): void;
     close(): void;
     recover(): Promise<void>;
+    private fromBuffer;
+    private toBuffer;
     private appendExpiredEvent;
     private saveToDisk;
     private appendToFile;
