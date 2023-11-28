@@ -113,7 +113,7 @@ describe("persistentNodeCacheBackupRestore", () => {
         cache.mset([{key: 'foo', val: 'bar'}, {key: 'alice', val: 'bob'}]);
         jest.advanceTimersByTime(1500);
         let data = [{key: 'foo', val: 'bar', ttl: 0}, {key: 'alice', val: 'bob', ttl: 0}]
-        expect(fs.writeFileSync).toHaveBeenCalledWith('/tmp/mycache.backup', Buffer.from(JSON.stringify(data)));
+        expect(fs.writeFileSync).toHaveBeenCalledWith('/tmp/mycache.backup', Buffer.from(JSON.stringify(data) + "\n"));
         expect(fs.writeFileSync).toHaveBeenCalledWith('/tmp/mycache.append', '');
         cache.close();
     });
@@ -121,7 +121,7 @@ describe("persistentNodeCacheBackupRestore", () => {
     it("should restore cache from backup", async () => {
         let data = [{key: 'foo', val: 'bar', ttl: 0}, {key: 'alice', val: 'bob', ttl: 0}]
         jest.spyOn(fs, 'readFileSync').mockImplementation(function () {
-            return Buffer.from(JSON.stringify(data));
+            return Buffer.from(JSON.stringify(data) + '\n');
         });
         let cmd1 = { cmd: 'set', key: 'john', val: 'doe'}
         let cmd2 = { cmd: 'del', key: 'alice'}
@@ -205,5 +205,79 @@ describe('persistentNodeCacheTestWait', () => {
             expect(val).toBe('bob');
             cache.close();
         }, 10);
+    });
+});
+
+describe('persistentNodeCacheSerialize', () => {
+    it('should set the key-value with custom serialization', () => {
+        const encoder = (data: any) => {
+            return Buffer.from(Buffer.from(JSON.stringify(data)).toString('base64') + '\n');
+        }
+        const decoder = (data: Buffer) => {
+            return Buffer.from(data.toString().trim(), 'base64').toString();
+        }
+        let cache = new PersistentNodeCache("custom", 2000, "", {}, encoder, decoder);
+        const appendToFileMock = jest.spyOn(PersistentNodeCache.prototype as any, 'appendToFile');
+        cache.set("foo", "bar");
+        expect(appendToFileMock).toHaveBeenCalled();
+        let item = { cmd: 'set', key: 'foo', val: 'bar'};
+        expect(appendToFileMock).toBeCalledWith(`${os.homedir()}/custom.append`, Buffer.from(Buffer.from(JSON.stringify(item)).toString('base64') + '\n'))
+        let val = cache.get("foo");
+        expect(val).toBe("bar");
+        cache.close();
+    });
+
+    it("should save backup periodically", () => {
+        const encoder = (data: any) => {
+            return Buffer.from(Buffer.from(JSON.stringify(data)).toString('base64') + '\n');
+        }
+        const decoder = (data: Buffer) => {
+            return Buffer.from(data.toString(), 'base64').toString();
+        }
+        jest.useFakeTimers();
+        let cache = new PersistentNodeCache("custom", 1000, '/tmp', {}, encoder, decoder);
+        cache.mset([{key: 'foo', val: 'bar'}, {key: 'alice', val: 'bob'}]);
+        jest.advanceTimersByTime(1500);
+        let data = [{key: 'foo', val: 'bar', ttl: 0}, {key: 'alice', val: 'bob', ttl: 0}]
+        expect(fs.writeFileSync).toHaveBeenCalledWith('/tmp/custom.backup', Buffer.from(Buffer.from(JSON.stringify(data)).toString('base64') + '\n'));
+        expect(fs.writeFileSync).toHaveBeenCalledWith('/tmp/custom.append', '');
+        cache.close();
+    });
+
+    it("should restore cache from backup", async () => {
+        let data = [{key: 'foo', val: 'bar', ttl: 0}, {key: 'alice', val: 'bob', ttl: 0}]
+        jest.spyOn(fs, 'readFileSync').mockImplementation(function () {
+            return Buffer.from(Buffer.from(JSON.stringify(data)).toString('base64') + '\n');
+        });
+        const encoder = (data: any) => {
+            return Buffer.from(Buffer.from(JSON.stringify(data)).toString('base64') + '\n');
+        }
+        const decoder = (data: Buffer) => {
+            return JSON.parse(Buffer.from(data.toString(), 'base64').toString());
+        }
+        let cmd1 = { cmd: 'set', key: 'john', val: 'doe'}
+        let cmd2 = { cmd: 'del', key: 'alice'}
+        let cmd3 = { cmd: 'mset', keyValue: [{key: 'abc', val: 'xyz'}, {key: 'cat', val: 'dog', ttl: 10}]}
+        let buffer = Buffer.from(Buffer.from(JSON.stringify(cmd1)).toString('base64') + '\n' +
+            Buffer.from(JSON.stringify(cmd2)).toString('base64') + '\n' +
+            Buffer.from(JSON.stringify(cmd3)).toString('base64') + '\n');
+        jest.spyOn(fs, 'createReadStream').mockImplementation(function () {
+            return Readable.from(buffer);
+        });
+        let cache = new PersistentNodeCache("custom", 1000, '', {}, encoder, decoder);
+        await cache.recover();
+        let val = cache.get('foo');
+        expect(val).toBe('bar');
+        val = cache.get('nothing');
+        expect(val).toBe(undefined);
+        val = cache.get('alice');
+        expect(val).toBe(undefined);
+        val = cache.get('abc');
+        expect(val).toBe('xyz');
+        var d = new Date();
+        let ttl = cache.getTtl('cat')
+        expect(ttl).toBeDefined();
+        expect(d.getTime() - Number(ttl)).toBeLessThanOrEqual(10);
+        cache.close();
     });
 });
