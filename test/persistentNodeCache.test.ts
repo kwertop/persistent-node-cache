@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import PersistentNodeCache from "../src/persistentNodeCache";
+import PersistentNodeCache, { Serializer } from "../src/persistentNodeCache";
 const fs = require('fs');
 const { Readable } = require('stream');
 import {EventEmitter} from 'events';
@@ -210,13 +210,15 @@ describe('persistentNodeCacheTestWait', () => {
 
 describe('persistentNodeCacheSerialize', () => {
     it('should set the key-value with custom serialization', () => {
-        const encoder = (data: any) => {
-            return Buffer.from(Buffer.from(JSON.stringify(data)).toString('base64') + '\n');
-        }
-        const decoder = (data: Buffer) => {
-            return Buffer.from(data.toString().trim(), 'base64').toString();
-        }
-        let cache = new PersistentNodeCache("custom", 2000, "", {}, encoder, decoder);
+        const customSerializer: Serializer = {
+            serialize: (item: any) => {
+                return Buffer.from(Buffer.from(JSON.stringify(item)).toString('base64') + '\n');
+            },
+            deserialize: (bf: Buffer) => {
+                return JSON.parse(Buffer.from(bf.toString().trim(), 'base64').toString());
+            }
+        };
+        let cache = new PersistentNodeCache("custom", 2000, "", {}, customSerializer);
         const appendToFileMock = jest.spyOn(PersistentNodeCache.prototype as any, 'appendToFile');
         cache.set("foo", "bar");
         expect(appendToFileMock).toHaveBeenCalled();
@@ -228,14 +230,16 @@ describe('persistentNodeCacheSerialize', () => {
     });
 
     it("should save backup periodically", () => {
-        const encoder = (data: any) => {
-            return Buffer.from(Buffer.from(JSON.stringify(data)).toString('base64') + '\n');
-        }
-        const decoder = (data: Buffer) => {
-            return Buffer.from(data.toString(), 'base64').toString();
-        }
+        const customSerializer: Serializer = {
+            serialize: (item: any) => {
+                return Buffer.from(Buffer.from(JSON.stringify(item)).toString('base64') + '\n');
+            },
+            deserialize: (bf: Buffer) => {
+                return JSON.parse(Buffer.from(bf.toString().trim(), 'base64').toString());
+            }
+        };
         jest.useFakeTimers();
-        let cache = new PersistentNodeCache("custom", 1000, '/tmp', {}, encoder, decoder);
+        let cache = new PersistentNodeCache("custom", 1000, '/tmp', {}, customSerializer);
         cache.mset([{key: 'foo', val: 'bar'}, {key: 'alice', val: 'bob'}]);
         jest.advanceTimersByTime(1500);
         let data = [{key: 'foo', val: 'bar', ttl: 0}, {key: 'alice', val: 'bob', ttl: 0}]
@@ -249,12 +253,14 @@ describe('persistentNodeCacheSerialize', () => {
         jest.spyOn(fs, 'readFileSync').mockImplementation(function () {
             return Buffer.from(Buffer.from(JSON.stringify(data)).toString('base64') + '\n');
         });
-        const encoder = (data: any) => {
-            return Buffer.from(Buffer.from(JSON.stringify(data)).toString('base64') + '\n');
-        }
-        const decoder = (data: Buffer) => {
-            return JSON.parse(Buffer.from(data.toString(), 'base64').toString());
-        }
+        const customSerializer: Serializer = {
+            serialize: (item: any) => {
+                return Buffer.from(Buffer.from(JSON.stringify(item)).toString('base64') + '\n');
+            },
+            deserialize: (bf: Buffer) => {
+                return JSON.parse(Buffer.from(bf.toString().trim(), 'base64').toString());
+            }
+        };
         let cmd1 = { cmd: 'set', key: 'john', val: 'doe'}
         let cmd2 = { cmd: 'del', key: 'alice'}
         let cmd3 = { cmd: 'mset', keyValue: [{key: 'abc', val: 'xyz'}, {key: 'cat', val: 'dog', ttl: 10}]}
@@ -264,7 +270,7 @@ describe('persistentNodeCacheSerialize', () => {
         jest.spyOn(fs, 'createReadStream').mockImplementation(function () {
             return Readable.from(buffer);
         });
-        let cache = new PersistentNodeCache("custom", 1000, '', {}, encoder, decoder);
+        let cache = new PersistentNodeCache("custom", 1000, '', {}, customSerializer);
         await cache.recover();
         let val = cache.get('foo');
         expect(val).toBe('bar');
