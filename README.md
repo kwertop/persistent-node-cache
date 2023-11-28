@@ -20,7 +20,7 @@ npm i persistent-node-cache
 ```typescript
 import { PersistentNodeCache } from "persistent-node-cache";
 
-const persistentCache = new PersistentNodeCache("mycache", 1000);
+const cache = new PersistentNodeCache("mycache", 1000);
 ```
 
 #### Options
@@ -47,12 +47,12 @@ Please refer to **node-cache** docs for an extensive list of all operations supp
 
 #### Store a key (SET):
 
-`persistentCache.set(key, val, [ttl])`
+`cache.set(key, val, [ttl])`
 
 Sets a key-value pair. Defining `ttl` is optional.
 
 ```typescript
-persistentCache.set("mykey", "myval", 1000);    //true
+cache.set("mykey", "myval", 1000);    //true
 ```
 
 #### Retrieve a key (GET):
@@ -60,7 +60,7 @@ persistentCache.set("mykey", "myval", 1000);    //true
 Get a key-value pair.
 
 ```typescript
-persistentCache.get("mykey");    //myval
+cache.get("mykey");    //myval
 ```
 
 #### Delete a key (DEL):
@@ -68,7 +68,7 @@ persistentCache.get("mykey");    //myval
 Delete a key from cache. Returns the number of entries deleted.
 
 ```typescript
-persistentCache.del("mykey");    //1
+cache.del("mykey");    //1
 ```
 
 ### Restore/Recover Cache
@@ -77,10 +77,10 @@ The `cacheName` field should be passed to tell which cache to restore. If `dir` 
 previously, it should be passed during recovery as well to locate the backup files.
 
 ```typescript
-const persistentCache = new PersistentNodeCache("mycache");
-persistentCache.recover();
+const cache = new PersistentNodeCache("mycache");
+cache.recover();
 
-persistentCache.get("mykey");    //myval
+cache.get("mykey");    //myval
 ```
 
 ### Use Custom Serializer
