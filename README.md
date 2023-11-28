@@ -29,7 +29,7 @@ const persistentCache = new PersistentNodeCache("mycache", 1000);
  - `period`: `number` *(default: `1 second`)* interval at which cache backup is saved
  - `dir`: `string` *(default: `home dir of user`)* directory where backup files will be created
  - `opts`: `object` standard options of `node-cache` package
- - `serializer`: `[CacheSerializer](#cacheserializer-type)` *(default: `JSON serializer`)* custom serializer for persisting data on disk
+ - `serializer`: [CacheSerializer](#cacheserializer-type) *(default: `JSON serializer`)* custom serializer for persisting data on disk
 
 #### CacheSerializer Type
 
