@@ -21,8 +21,10 @@ export default class PersistentNodeCache extends NodeCache {
     private readonly appendFilePath: string;
     private flushingToDisk: boolean;
     private appendFileDescriptor: any;
+    private encoder: Function | undefined;
+    private decoder: Function | undefined;
 
-    constructor(cacheName: string, period?: number, dir?: string, opts?: any) {
+    constructor(cacheName: string, period?: number, dir?: string, opts?: any, encoder?: Function, decoder?: Function) {
         super(opts);
         this.cacheName = cacheName;
         this.interval = setInterval(() => { this.saveToDisk() }, period || 1000);
@@ -34,6 +36,8 @@ export default class PersistentNodeCache extends NodeCache {
         this.backupFilePath = (dir || os.homedir()) + `/${this.cacheName}.backup`;
         this.appendFilePath = (dir || os.homedir()) + `/${this.cacheName}.append`;
         fs.writeFileSync(this.appendFilePath, '');
+        this.encoder = encoder;
+        this.decoder = decoder;
         super.on("expired", (key, _) => { this.appendExpiredEvent(key) });
     }
 
@@ -49,7 +53,7 @@ export default class PersistentNodeCache extends NodeCache {
             retVal = super.set(key, value)
         }
         let item: CmdItem = { cmd: 'set', key: key, val: value, ttl: ttl};
-        let bf = Buffer.from(JSON.stringify(item) + '\n');
+        let bf: Buffer = this.toBuffer(item);
         // fs.appendFileSync(this.appendFilePath, bf);
         this.appendToFile(this.appendFilePath, bf);
         return retVal;
@@ -61,7 +65,7 @@ export default class PersistentNodeCache extends NodeCache {
             return false;
         }
         let item: CmdItem = { cmd: 'mset', keyValue: keyValueSet};
-        let bf = Buffer.from(JSON.stringify(item) + '\n');
+        let bf: Buffer = this.toBuffer(item);
         this.appendToFile(this.appendFilePath, bf);
         return super.mset(keyValueSet)
     }
@@ -72,7 +76,7 @@ export default class PersistentNodeCache extends NodeCache {
             return 0;
         }
         let item: CmdItem = { cmd: 'del', key: keys};
-        let bf = Buffer.from(JSON.stringify(item) + '\n');
+        let bf: Buffer = this.toBuffer(item);
         this.appendToFile(this.appendFilePath, bf);
         return super.del(keys)
     }
@@ -83,7 +87,7 @@ export default class PersistentNodeCache extends NodeCache {
             return;
         }
         let item: CmdItem = { cmd: 'del', key: key};
-        let bf = Buffer.from(JSON.stringify(item) + '\n');
+        let bf: Buffer = this.toBuffer(item);
         this.appendToFile(this.appendFilePath, bf);
         return super.take(key);
     }
@@ -100,7 +104,7 @@ export default class PersistentNodeCache extends NodeCache {
             retVal = super.ttl(key)
         }
         let item: CmdItem = { cmd: 'ttl', key: key, ttl: ttl};
-        let bf = Buffer.from(JSON.stringify(item) + '\n');
+        let bf: Buffer = this.toBuffer(item);
         this.appendToFile(this.appendFilePath, bf);
         return retVal;
     }
@@ -116,7 +120,7 @@ export default class PersistentNodeCache extends NodeCache {
 
     public async recover() {
         const backup = fs.readFileSync(this.backupFilePath);
-        const data = JSON.parse(backup.toString());
+        let data: any = this.fromBuffer(backup);
         super.mset(data);
         const fileStream = fs.createReadStream(this.appendFilePath);
         const rl = readline.createInterface({
@@ -125,7 +129,7 @@ export default class PersistentNodeCache extends NodeCache {
         });
         for await (const line of rl) {
             let m = super.keys();
-            let data = JSON.parse(line.toString());
+            let data: any = this.fromBuffer(Buffer.from(line));
             switch(data['cmd']) {
                 case 'set':
                     super.set(data['key'], data['val'], data['ttl']);
@@ -145,9 +149,31 @@ export default class PersistentNodeCache extends NodeCache {
         }
     }
 
+    private fromBuffer(bf: Buffer) {
+        let data: any;
+        if (this.decoder) {
+            data = this.decoder(bf);
+        }
+        else {
+            data = JSON.parse(bf.toString());
+        }
+        return data;
+    }
+
+    private toBuffer(item: any) {
+        let bf: Buffer;
+        if (this.encoder) {
+            bf = this.encoder(item);
+        }
+        else {
+            bf = Buffer.from(JSON.stringify(item) + '\n');
+        }
+        return bf;
+    }
+
     private appendExpiredEvent(key: Key) {
         let item: CmdItem = { cmd: 'del', key: key};
-        let bf = Buffer.from(JSON.stringify(item) + '\n');
+        let bf: Buffer = this.toBuffer(item);
         this.appendToFile(this.appendFilePath, bf);
     }
 
@@ -165,7 +191,7 @@ export default class PersistentNodeCache extends NodeCache {
                 }
                 data.push(item)
             }
-            let bf = Buffer.from(JSON.stringify(data));
+            let bf = this.toBuffer(data);
             fs.writeFileSync(this.backupFilePath, bf);
             fs.writeFileSync(this.appendFilePath, '');
             this.appendFileDescriptor.close();
