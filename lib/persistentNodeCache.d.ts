@@ -12,6 +12,7 @@ export default class PersistentNodeCache extends NodeCache {
     private flushingToDisk;
     private appendFileDescriptor;
     private serializer;
+    private changesSinceLastBackup;
     constructor(cacheName: string, period?: number, dir?: string, opts?: any, serializer?: CacheSerializer);
     set<T>(key: Key, value: T, ttl?: number | string): boolean;
     mset<T>(keyValueSet: ValueSetItem<T>[]): boolean;

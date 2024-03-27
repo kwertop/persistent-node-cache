@@ -27,6 +27,7 @@ export default class PersistentNodeCache extends NodeCache {
     private flushingToDisk: boolean;
     private appendFileDescriptor: any;
     private serializer: CacheSerializer;
+    private changesSinceLastBackup: boolean;
 
     constructor(cacheName: string, period?: number, dir?: string, opts?: any, serializer?: CacheSerializer) {
         super(opts);
@@ -58,6 +59,7 @@ export default class PersistentNodeCache extends NodeCache {
             }
             this.serializer = customSerializer;
         }
+        this.changesSinceLastBackup = false;
         super.on("expired", (key, _) => { this.appendExpiredEvent(key) });
     }
 
@@ -179,6 +181,10 @@ export default class PersistentNodeCache extends NodeCache {
     }
 
     private saveToDisk(): void {
+        if(!this.changesSinceLastBackup) {
+            return;
+        }
+
         this.flushingToDisk = true;
         try {
             let data: Array<ValueSetItem> = new Array<ValueSetItem>();
@@ -202,11 +208,13 @@ export default class PersistentNodeCache extends NodeCache {
         }
         finally {
             this.flushingToDisk = false;
+            this.changesSinceLastBackup = false;
             this.emitter.emit('done');
         }
     }
 
     private appendToFile(fileName: string, data: Buffer): void {
+        this.changesSinceLastBackup = true;
         const flags = fs.constants.O_WRONLY | fs.constants.O_DIRECT | fs.constants.O_APPEND;
         const mode = 0o666;
 
