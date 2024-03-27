@@ -206,6 +206,15 @@ describe('persistentNodeCacheTestWait', () => {
             cache.close();
         }, 10);
     });
+
+    it('should not throw ENOENT exception on restore', async () => {
+        let cache = new PersistentNodeCache("mycustomcache", 30000);
+        try {
+            await cache.recover()
+        } catch(e: any) {
+            expect(e).toBeUndefined();
+        }
+    });
 });
 
 describe('persistentNodeCacheSerialize', () => {

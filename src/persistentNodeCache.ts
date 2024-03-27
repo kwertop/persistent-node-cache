@@ -39,7 +39,11 @@ export default class PersistentNodeCache extends NodeCache {
         }
         this.backupFilePath = (dir || os.homedir()) + `/${this.cacheName}.backup`;
         this.appendFilePath = (dir || os.homedir()) + `/${this.cacheName}.append`;
+
+        //create files
+        fs.writeFileSync(this.backupFilePath, '');
         fs.writeFileSync(this.appendFilePath, '');
+
         if(serializer) {
             this.serializer = serializer;
         }
@@ -136,6 +140,9 @@ export default class PersistentNodeCache extends NodeCache {
 
     public async recover() {
         const backup = fs.readFileSync(this.backupFilePath);
+        if(backup.length === 0) {
+            return;
+        }
         let data: any = this.serializer.deserialize(backup);
         super.mset(data);
         const fileStream = fs.createReadStream(this.appendFilePath);
