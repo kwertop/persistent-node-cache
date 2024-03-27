@@ -1,6 +1,6 @@
 {
   "name": "persistent-node-cache",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "persistent wrapper over node-cache for recovery",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
