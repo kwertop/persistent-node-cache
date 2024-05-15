@@ -153,8 +153,11 @@ export default class PersistentNodeCache extends NodeCache {
             let data: any = this.serializer.deserialize(backup);
             super.mset(data);
         }
-        const appendData = fs.readFileSync(this.appendFilePath, 'utf-8');
+        const appendData: string = fs.readFileSync(this.appendFilePath, 'utf-8');
         appendData.split(/\r?\n/).forEach((line) => {
+            if(line.length == 0) {
+                return;
+            }
             let data: any = this.serializer.deserialize(line);
             switch(data['cmd']) {
                 case 'set':
