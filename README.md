@@ -73,7 +73,7 @@ cache.del("mykey");    //1
 
 ### Restore/Recover Cache
 
-#### Version 1.2.1 onwards
+#### Version 1.2.0 onwards
 The cache is restored automatically when the cache is initialized (again). Parameter is `cacheName` should be passed. `dir` will have to be passed if the cache was created specifying a custom directory.
 
 ```typescript
