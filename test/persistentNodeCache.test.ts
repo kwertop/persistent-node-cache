@@ -1,10 +1,8 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import PersistentNodeCache, { CacheSerializer } from "../src/persistentNodeCache";
 const fs = require('fs');
-const { Readable } = require('stream');
 import {EventEmitter} from 'events';
 import os from "os";
-import exp from "constants";
 
 describe("persistentNodeCache", () => {
     beforeEach(() => {
@@ -120,15 +118,18 @@ describe("persistentNodeCacheBackupRestore", () => {
 
     it("should restore cache from backup", async () => {
         let data = [{key: 'foo', val: 'bar', ttl: 0}, {key: 'alice', val: 'bob', ttl: 0}]
-        jest.spyOn(fs, 'readFileSync').mockImplementation(function () {
-            return Buffer.from(JSON.stringify(data) + '\n');
-        });
         let cmd1 = { cmd: 'set', key: 'john', val: 'doe'}
         let cmd2 = { cmd: 'del', key: 'alice'}
         let cmd3 = { cmd: 'mset', keyValue: [{key: 'abc', val: 'xyz'}, {key: 'cat', val: 'dog', ttl: 10}]}
-        let buffer = Buffer.from(JSON.stringify(cmd1) + '\n' + JSON.stringify(cmd2) + '\n' + JSON.stringify(cmd3) + '\n');
-        jest.spyOn(fs, 'createReadStream').mockImplementation(function () {
-            return Readable.from(buffer);
+        let appendData = JSON.stringify(cmd1) + '\n' + JSON.stringify(cmd2) + '\n' + JSON.stringify(cmd3) + '\n';
+        jest.spyOn(fs, 'readFileSync');
+        fs.readFileSync.mockImplementation(function (fileName: string, encoding: string) {
+            if(encoding === undefined) {
+                return Buffer.from(JSON.stringify(data) + '\n');
+            }
+            else {
+                return appendData;
+            }
         });
         let cache = new PersistentNodeCache("mycache", 1000);
         await cache.recover();
@@ -149,6 +150,15 @@ describe("persistentNodeCacheBackupRestore", () => {
 });
 
 describe('persistentNodeCacheTestWait', () => {
+    beforeEach(() => {
+        if(fs.existsSync(os.homedir() + '/mycache.backup')) {
+            fs.unlinkSync(os.homedir() + '/mycache.backup');
+        }
+        if(fs.existsSync(os.homedir() + '/mycache.append')) {
+            fs.unlinkSync(os.homedir() + '/mycache.append');
+        }
+    });
+
     it('should wait for the event for set', () => {
         let emitter = new EventEmitter();
         let cache = new PersistentNodeCache("mycache", 1000);
@@ -259,9 +269,6 @@ describe('persistentNodeCacheSerialize', () => {
 
     it("should restore cache from backup", async () => {
         let data = [{key: 'foo', val: 'bar', ttl: 0}, {key: 'alice', val: 'bob', ttl: 0}]
-        jest.spyOn(fs, 'readFileSync').mockImplementation(function () {
-            return Buffer.from(Buffer.from(JSON.stringify(data)).toString('base64') + '\n');
-        });
         const customSerializer: CacheSerializer = {
             serialize: (item: any) => {
                 return Buffer.from(Buffer.from(JSON.stringify(item)).toString('base64') + '\n');
@@ -273,11 +280,17 @@ describe('persistentNodeCacheSerialize', () => {
         let cmd1 = { cmd: 'set', key: 'john', val: 'doe'}
         let cmd2 = { cmd: 'del', key: 'alice'}
         let cmd3 = { cmd: 'mset', keyValue: [{key: 'abc', val: 'xyz'}, {key: 'cat', val: 'dog', ttl: 10}]}
-        let buffer = Buffer.from(Buffer.from(JSON.stringify(cmd1)).toString('base64') + '\n' +
+        let appendData = Buffer.from(JSON.stringify(cmd1)).toString('base64') + '\n' +
             Buffer.from(JSON.stringify(cmd2)).toString('base64') + '\n' +
-            Buffer.from(JSON.stringify(cmd3)).toString('base64') + '\n');
-        jest.spyOn(fs, 'createReadStream').mockImplementation(function () {
-            return Readable.from(buffer);
+            Buffer.from(JSON.stringify(cmd3)).toString('base64') + '\n';
+        jest.spyOn(fs, 'readFileSync');
+        fs.readFileSync.mockImplementation(function (fileName: string, encoding: string) {
+            if(encoding === undefined) {
+                return Buffer.from(Buffer.from(JSON.stringify(data)).toString('base64') + '\n');
+            }
+            else {
+                return appendData;
+            }
         });
         let cache = new PersistentNodeCache("custom", 1000, '', {}, customSerializer);
         await cache.recover();

@@ -21,7 +21,7 @@ export default class PersistentNodeCache extends NodeCache {
     ttl(key: Key, ttl?: number): boolean;
     flushAll(): void;
     close(): void;
-    recover(): Promise<void>;
+    recover(): void;
     private appendExpiredEvent;
     private saveToDisk;
     private appendToFile;

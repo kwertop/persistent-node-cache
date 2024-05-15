@@ -32,7 +32,6 @@ export default class PersistentNodeCache extends NodeCache {
     constructor(cacheName: string, period?: number, dir?: string, opts?: any, serializer?: CacheSerializer) {
         super(opts);
         this.cacheName = cacheName;
-        this.interval = setInterval(() => { this.saveToDisk() }, period || 1000);
         this.emitter = new EventEmitter();
         this.flushingToDisk = false;
         if(dir?.endsWith('/')) {
@@ -40,10 +39,6 @@ export default class PersistentNodeCache extends NodeCache {
         }
         this.backupFilePath = (dir || os.homedir()) + `/${this.cacheName}.backup`;
         this.appendFilePath = (dir || os.homedir()) + `/${this.cacheName}.append`;
-
-        //create files
-        fs.writeFileSync(this.backupFilePath, '');
-        fs.writeFileSync(this.appendFilePath, '');
 
         if(serializer) {
             this.serializer = serializer;
@@ -61,6 +56,18 @@ export default class PersistentNodeCache extends NodeCache {
         }
         this.changesSinceLastBackup = false;
         super.on("expired", (key, _) => { this.appendExpiredEvent(key) });
+
+        // Look for backup and append files and recover if found. Otherwise create them
+        try {
+            fs.accessSync(this.backupFilePath, fs.constants.R_OK | fs.constants.W_OK);
+            fs.accessSync(this.appendFilePath, fs.constants.R_OK | fs.constants.W_OK);
+            this.recover();
+        } catch (err) {
+            fs.writeFileSync(this.backupFilePath, '');
+            fs.writeFileSync(this.appendFilePath, '');
+        }
+        // Need to start the interval after we recover the files otherwise they get erased
+        this.interval = setInterval(() => { this.saveToDisk() }, period || 1000);
     }
 
     public override set<T>(key: Key, value: T, ttl?: number | string): boolean {
@@ -140,20 +147,17 @@ export default class PersistentNodeCache extends NodeCache {
         clearInterval(this.interval);
     }
 
-    public async recover() {
+    public recover() {
         const backup = fs.readFileSync(this.backupFilePath);
-        if(backup.length === 0) {
-            return;
+        if(backup.length > 0) {
+            let data: any = this.serializer.deserialize(backup);
+            super.mset(data);
         }
-        let data: any = this.serializer.deserialize(backup);
-        super.mset(data);
-        const fileStream = fs.createReadStream(this.appendFilePath);
-        const rl = readline.createInterface({
-            input: fileStream,
-            crlfDelay: Infinity
-        });
-        for await (const line of rl) {
-            let m = super.keys();
+        const appendData: string = fs.readFileSync(this.appendFilePath, 'utf-8');
+        appendData.split(/\r?\n/).forEach((line) => {
+            if(line.length == 0) {
+                return;
+            }
             let data: any = this.serializer.deserialize(line);
             switch(data['cmd']) {
                 case 'set':
@@ -171,7 +175,7 @@ export default class PersistentNodeCache extends NodeCache {
                 default:
                     break;
             }
-        }
+        });
     }
 
     private appendExpiredEvent(key: Key) {
@@ -240,3 +244,4 @@ export default class PersistentNodeCache extends NodeCache {
         });
     }
 }
+
