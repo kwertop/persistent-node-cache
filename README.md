@@ -73,8 +73,17 @@ cache.del("mykey");    //1
 
 ### Restore/Recover Cache
 
-The `cacheName` field should be passed to tell which cache to restore. If `dir` field was passed during cache initialization
-previously, it should be passed during recovery as well to locate the backup files.
+#### Version 1.2.1 onwards
+The cache is restored automatically when the cache is initialized (again). Parameter is `cacheName` should be passed. `dir` will have to be passed if the cache was created specifying a custom directory.
+
+```typescript
+const cache = new PersistentNodeCache("mycache");
+
+cache.get("mykey");    //myval
+```
+
+#### Version 1.1.1 and before
+The `cacheName` field should be passed to tell which cache to restore. If `dir` field was passed during cache initialization previously, it should be passed during recovery as well to locate the backup files.
 
 ```typescript
 const cache = new PersistentNodeCache("mycache");
