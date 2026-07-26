@@ -1,5 +1,5 @@
-export declare const waitFor: <Event_1 extends string>(event: Event_1, emitter: EventEmitter<Event_1>, callback?: Callback) => Promise<void>;
-export declare const removeListener: <Event_1 extends string>(emitter: EventEmitterOff<Event_1> | EventEmitterRemoveListener<Event_1>, event: "error" | Event_1, listener: EventListener) => void;
+export declare const waitFor: <Event extends string>(event: Event, emitter: EventEmitter<Event>, callback?: Callback) => Promise<void>;
+export declare const removeListener: <Event extends string>(emitter: EventEmitterOff<Event> | EventEmitterRemoveListener<Event>, event: Event | "error", listener: EventListener) => void;
 interface Callback {
     (error: any): void;
 }

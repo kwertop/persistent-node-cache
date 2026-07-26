@@ -219,11 +219,11 @@ export default class PersistentNodeCache extends NodeCache {
 
     private appendToFile(fileName: string, data: Buffer): void {
         this.changesSinceLastBackup = true;
-        const flags = fs.constants.O_WRONLY | fs.constants.O_DIRECT | fs.constants.O_APPEND;
+        const flags = fs.constants.O_WRONLY | fs.constants.O_APPEND;
         const mode = 0o666;
 
         if(this.appendFileDescriptor) {
-            fs.write(this.appendFileDescriptor, data, 0, data.length, null, (writeErr, written, buffer) => {
+            fs.write(this.appendFileDescriptor, data as Uint8Array, 0, data.length, null, (writeErr, written, buffer) => {
                 if (writeErr) {
                     console.error('Error writing to file:', writeErr);
                 }
@@ -236,7 +236,7 @@ export default class PersistentNodeCache extends NodeCache {
                 return;
             }
             this.appendFileDescriptor = fd;
-            fs.write(fd, data, 0, data.length, null, (writeErr, written, buffer) => {
+            fs.write(fd, data as Uint8Array, 0, data.length, null, (writeErr, written, buffer) => {
                 if (writeErr) {
                     console.error('Error writing to file:', writeErr);
                 }
